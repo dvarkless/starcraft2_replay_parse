@@ -41,6 +41,7 @@ class ReplayData:
 
         self.players = defaultdict(lambda: defaultdict(list))
         self.replay = replay
+        self.replay_dict = replay.as_dict()
         # Get the number of frames (one frame is 1/16 of a second)
         self.frames = replay.frames
         # Gets the game mode (if available)
@@ -75,6 +76,15 @@ class ReplayData:
             self.losers = [p for p in replay.players]
         # Check to see if expansion data is available
         self.expansion = replay.expansion
+        self.players_hash = replay.people_hash
+        self.is_ranked = bool(replay.is_ladder)
+        self.player_names = self.winners + self.losers
+        self.players_id = {k: 0 for k in self.player_names}
+
+        for data in self.replay_dict["raw_data"]["replay.details"]["players"]:
+            player, id = data["bnet"]["name"], data["bnet"]["uid"]
+            self.players_id[player] = id
+
         return self
 
     def as_dict(self):
@@ -97,6 +107,9 @@ class ReplayData:
             "winners": [(s.pid, s.name, s.detail_data["race"]) for s in self.winners],
             "losers": [(s.pid, s.name, s.detail_data["race"]) for s in self.losers],
             "stats_names": [k for k in self.players[1].keys()],
+            "players": self.players,
+            "players_hash": self.players_hash,
+            "players_id": self.players_id,
             "stats": {player: data for player, data in self.players.items()},
             "league": self.league,
         }
@@ -219,7 +232,9 @@ class BuildOrderData:
         return df
 
     def get_unit_counts(self, replay_data_dict):
-        player_1_events = replay_data_dict["stats"]
+        for player in replay_data_dict["players"]:
+            player_events = replay_data_dict["stats"][player]
+            event_transformed = 
 
     def normalize_event(self, event_data, event_type="general", event_name=""):
         tick = 0
@@ -230,9 +245,7 @@ class BuildOrderData:
         if event_type == "general":
             tick, action, data_name = event_data
             if action == "+" and data_name in self.morthed_units.keys():
-                event_name = (
-                    self.symbol_meaning[action] + self.morthed_units[data_name]
-                )
+                event_name = self.symbol_meaning[action] + self.morthed_units[data_name]
             else:
                 event_name = self.symbol_meaning[action] + data_name
         elif event_type == "upgrade":
