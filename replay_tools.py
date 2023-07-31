@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 import sc2reader
 import xarray as xr
+from alive_progress import alive_it
 from sc2reader.engine.plugins import (APMTracker, ContextLoader,
                                       SelectionTracker)
 from tqdm import tqdm
@@ -99,6 +100,186 @@ class ReplayData:
             "stats": {player: data for player, data in self.players.items()},
             "league": self.league,
         }
+
+
+class BuildOrderData:
+    general_data = [
+        "army_event",
+        "ground_building",
+        "air_building",
+        "tech_building",
+        "expantion_event",
+    ]
+    upgrades_data = ["upgrades"]
+
+    specific_data = [
+        "minerals_available",
+        "vespene_available",
+        "minerals_collection_rate",
+        "vespene_collection_rate",
+    ]
+
+    symbol_meaning = {
+        "+": "create_",
+        "-": "lose_",
+        "*": "morth_",
+    }
+
+    morthed_units = {
+        "GreaterSpire": "Spire",
+        "OrbitalCommand": "CommandCenter",
+        "PlanetaryFortress": "CommandCenter",
+        "WarpGate": "Gateway",
+        "Archon": "HighTemplar",
+        "Lair": "Harchery",
+        "Hive": "Hatchery",
+        "Lurker": "Hydralisk",
+        "Baneling": "Zergling",
+        "Ravager": "Roach",
+        "BroodLord": "Corruptor",
+        "Overseer": "Overlord",
+    }
+    ignore_morths = [
+        "SiegeTank",
+        "SiegeTankSieged",
+        "Hellbat",
+        "Hellion",
+        "Liberator",
+        "LiberatorAG",
+        "InfestorBurrowed",
+        "RoachBurrowed",
+        "ZerglingBurrowed",
+        "BanelingBurrowed",
+        "DroneBurrowed",
+        "QueenBurrowed",
+        "HydraliskBurrowed",
+        "LurkerBurrowed",
+        "SwarmHostBurrowed",
+        "UltraliskBurrowed",
+        "WarpGate",
+    ]
+    game_speed = {
+        "normal": 0.6,
+        "fast": 0.8,
+        "faster": 1.0,
+    }
+    ticks_per_second = 16
+
+    def __init__(
+        self,
+        max_tick: int,
+        bin_size_ticks: int,
+        game_data,
+        add_info=None,
+        game_data_speed="faster",
+    ) -> None:
+        self.tick_bins = [
+            t * bin_size_ticks for t in range(max_tick // bin_size_ticks + 1)
+        ]
+        self.max_tick = self.tick_bins[-1]
+        self.bin_size_ticks = bin_size_ticks
+        self.bins_len = len(self.tick_bins)
+
+        self.add_info = add_info
+        if add_info is None:
+            self.add_info = dict()
+        else:
+            for k in self.add_info.keys():
+                if not isinstance(k, str):
+                    raise ValueError(
+                        f"Keys of additional info dict should only be of type str"
+                    )
+
+        self.game_data = self.get_game_data(game_data, game_data_speed)
+
+    def get_game_data(self, path, speed="faster"):
+        df = pd.read_csv(path, index_col="name")
+
+        for name in df.index:
+            if df.loc[name, "type"] == "Unit":
+                prefix_list = list(self.symbol_meaning.values())
+                if name in self.morthed_units.keys():
+                    prefix_list.remove("create_")
+                else:
+                    prefix_list.remove("morth_")
+
+                for prefix in prefix_list:
+                    new_name = prefix + name
+                    df.loc[new_name, :] = df.loc[name, :]
+                    build_ticks = int(
+                        df.loc[new_name, "build_time"]
+                        * self.game_speed[speed]
+                        * self.ticks_per_second
+                    )
+                    df.loc[new_name, "build_time"] = build_ticks
+                    if prefix == "lose_":
+                        df.loc[new_name, "build_time"] = 0
+                df = df.drop(index=name)
+
+        return df
+
+    def get_unit_counts(self, replay_data_dict):
+        player_1_events = replay_data_dict["stats"]
+
+    def normalize_event(self, event_data, event_type="general", event_name=""):
+        tick = 0
+        action = ""
+        event_value = 1
+        data_name = "nop"
+
+        if event_type == "general":
+            tick, action, data_name = event_data
+            if action == "+" and data_name in self.morthed_units.keys():
+                event_name = (
+                    self.symbol_meaning[action] + self.morthed_units[data_name]
+                )
+            else:
+                event_name = self.symbol_meaning[action] + data_name
+        elif event_type == "upgrade":
+            tick, event_name = event_data
+        elif event_type == "specific":
+            tick, event_value = event_data
+        else:
+            raise ValueError(
+                f'"event type" should be in \
+                             ["general", "upgrades", "specific"]'
+            )
+
+        if action == "*" and data_name in self.ignore_morths:
+            return
+        if action == "*" and data_name not in self.morthed_units.keys():
+            return
+        if event_name not in self.da.columns:
+            msg = f'Bad key, "{event_name}" is not in columns'
+            raise KeyError(msg)
+
+        if tick < self.max_tick:
+            if action == "*" and data_name in self.morthed_units.keys():
+                creation_tick = tick - self.game_data.loc[event_name, "build_time"]
+            elif action == "+":
+                creation_tick = tick - self.game_data.loc[event_name, "build_time"]
+            else:
+                creation_tick = tick
+
+            time_pos = int(creation_tick - creation_tick % self.bin_size_ticks)
+            time_pos = max(time_pos, 0)
+            return (time_pos, event_name, event_value)
+        else:
+            return
+
+    def init_zeros_density(self, game_data):
+        data_dict = dict()
+        for key in game_data.columns:
+            data_dict[key] = [0 for _ in self.tick_bins]
+
+    def init_zeros_distribution(self, game_data):
+        data_dict = dict()
+        for key in game_data.columns:
+            if "lose_" not in key:
+                data_dict[key] = [0 for _ in self.tick_bins]
+
+    def tick_supply_mapper(self, tick_val):
+        return self.supply_consumed_list[tick_val // 160][1]
 
 
 class ReplayTransformer:
@@ -249,9 +430,11 @@ class ReplayTransformer:
         replay_dir = Path(replay_dir)
         processed_list = []
         dataset = xr.Dataset()
+        paths = alive_it(replay_dir.iterdir())
 
-        for replay_path in tqdm(replay_dir.iterdir()):
+        for i, replay_path in enumerate(paths):
             if replay_path.suffix == ".SC2Replay":
+                paths.text(f"replay {i}")
                 replay_dict = ReplayData().parse_replay(replay_path).as_dict()
                 packed_data = self.process_replay(replay_dict)
                 for data in packed_data:
