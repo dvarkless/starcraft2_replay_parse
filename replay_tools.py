@@ -61,6 +61,10 @@ class ReplayData:
             for parser in self.__parsers__:
                 parser(self, event)
 
+        self.map_names = {
+            k: v.detail_data["name"] for k, v in self.replay.player.items()
+        }
+
         # Check if there was a winner
         if replay.winner is not None:
             self.winners = replay.winner.players
@@ -68,6 +72,9 @@ class ReplayData:
         else:
             self.winners = []
             self.losers = [p for p in replay.players]
+
+        self.winners = [self.map_names[p] for p in self.winners]
+        self.losers = [self.map_names[p] for p in self.losers]
         # Check to see if expansion data is available
         self.expansion = replay.expansion
         self.players_hash = replay.people_hash
@@ -75,9 +82,8 @@ class ReplayData:
         self.player_names = self.winners + self.losers
         self.players_id = {k: 0 for k in self.player_names}
 
-        for data in self.replay.players:
-            player, id = data.detail_data["name"], data.detail_data["bnet"]["uid"]
-            self.players_id[player] = id
+        for name in self.player_names:
+            self.players_id[name] = self.replay.players[name].detail_data["bnet"]["uid"]
 
         return self
 
@@ -101,7 +107,7 @@ class ReplayData:
             "winners": [(s.pid, s.name, s.detail_data["race"]) for s in self.winners],
             "losers": [(s.pid, s.name, s.detail_data["race"]) for s in self.losers],
             "stats_names": [k for k in self.players[1].keys()],
-            "players": self.players,
+            "players": self.player_names,
             "players_hash": self.players_hash,
             "players_id": self.players_id,
             "stats": {player: data for player, data in self.players.items()},
@@ -260,13 +266,10 @@ class BuildOrderData:
         for player in replay_data_dict["players"]:
             player_events = replay_data_dict["stats"][player]
             transformed_events = self.get_event_counts(player_events)
-            specific_events_names = [
-                "-".join(name.split("_")) for name in self.specific_data
-            ]
             specific_events = []
             regular_events = []
             for event in transformed_events:
-                if event[1] in specific_events_names:
+                if event[1] in self.specific_data:
                     specific_events.append(event)
                 else:
                     regular_events.append(event)
@@ -289,7 +292,6 @@ class BuildOrderData:
                 ]
         else:
             for key in self.specific_data:
-                key = "-".join(key.split("_"))
                 data_dict[key] = [
                     0 for _ in range(self.game_max_dur // self.bin_size_ticks + 1)
                 ]
@@ -321,7 +323,8 @@ class BuildOrderData:
     def get_build_order_from_density(self, density_dict):
         build_order_dict = dict()
         for event_name, dense_vals in density_dict.items():
-            if "_" in event_name:
+            relevant_prefixes = ("create", "lose", "morth")
+            if any([event_name.startswith(p) for p in relevant_prefixes]):
                 action, name = event_name.split("_")
             else:
                 action = "create"
@@ -344,8 +347,6 @@ class BuildOrderData:
         tick = 0
         event_value = 1
         action = ""
-        if "_" in event_name:
-            event_name = "-".join(event_name.split("_"))
         if len(event_data) <= 2:
             tick, event_obj = event_data
         else:
