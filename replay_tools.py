@@ -61,9 +61,8 @@ class ReplayData:
             for parser in self.__parsers__:
                 parser(self, event)
 
-        self.map_names = {
-            k: v.detail_data["name"] for k, v in self.replay.player.items()
-        }
+        map_names = {v: v.detail_data["name"] for v in self.replay.player.values()}
+        print(map_names)
 
         # Check if there was a winner
         if replay.winner is not None:
@@ -73,17 +72,24 @@ class ReplayData:
             self.winners = []
             self.losers = [p for p in replay.players]
 
-        self.winners = [self.map_names[p] for p in self.winners]
-        self.losers = [self.map_names[p] for p in self.losers]
+        self.winners = [map_names[p] for p in self.winners]
+        self.losers = [map_names[p] for p in self.losers]
         # Check to see if expansion data is available
         self.expansion = replay.expansion
         self.players_hash = replay.people_hash
         self.is_ranked = bool(replay.is_ladder)
         self.player_names = self.winners + self.losers
-        self.players_id = {k: 0 for k in self.player_names}
+        self.players_data = {k: dict() for k in self.player_names}
 
-        for name in self.player_names:
-            self.players_id[name] = self.replay.players[name].detail_data["bnet"]["uid"]
+        for player_data in replay.players:
+            name = map_names[player_data]
+            self.players_data[name]["id"] = player_data.detail_data["bnet"]["uid"]
+            self.players_data[name]["full_name"] = str(player_data)
+            self.players_data[name]["race"] = player_data.detail_data["race"]
+            self.players_data[name]["league"] = getattr(
+                player_data, "highest_league", 0
+            )
+            self.players_data[name]["is_winner"] = name in self.winners
 
         return self
 
@@ -99,17 +105,17 @@ class ReplayData:
             "matchup": "v".join(
                 sorted(
                     [
-                        s.detail_data["race"][0].upper()
+                        self.players_data[s]["race"][0].upper()
                         for s in self.winners + self.losers
                     ]
                 )
             ),
-            "winners": [(s.pid, s.name, s.detail_data["race"]) for s in self.winners],
-            "losers": [(s.pid, s.name, s.detail_data["race"]) for s in self.losers],
+            "winners": [s for s in self.winners],
+            "losers": [s for s in self.losers],
             "stats_names": [k for k in self.players[1].keys()],
             "players": self.player_names,
             "players_hash": self.players_hash,
-            "players_id": self.players_id,
+            "players_data": self.players_data,
             "stats": {player: data for player, data in self.players.items()},
             "league": self.league,
         }
@@ -137,6 +143,11 @@ class BuildOrderData:
         "-": "lose_",
         "*": "morth_",
     }
+    buildings_at_start = [
+        "Hatchery",
+        "Nexus",
+        "CommandCenter",
+    ]
 
     replace_units = {
         "SiegeTankSieged": "SiegeTank",
@@ -149,7 +160,7 @@ class BuildOrderData:
         "PlanetaryFortress": "CommandCenter",
         "WarpGate": "Gateway",
         "Archon": "HighTemplar",
-        "Lair": "Harchery",
+        "Lair": "Hatchery",
         "Hive": "Hatchery",
         "Lurker": "Hydralisk",
         "Baneling": "Zergling",
@@ -263,8 +274,7 @@ class BuildOrderData:
 
     def yield_unit_counts(self, replay_data_dict):
         self.game_max_dur = self.get_game_duration(replay_data_dict)
-        for player in replay_data_dict["players"]:
-            player_events = replay_data_dict["stats"][player]
+        for player_events in replay_data_dict["stats"].values():
             transformed_events = self.get_event_counts(player_events)
             specific_events = []
             regular_events = []
@@ -290,6 +300,8 @@ class BuildOrderData:
                 data_dict[key] = [
                     0 for _ in range(self.game_max_dur // self.bin_size_ticks + 1)
                 ]
+                if key in self.buildings_at_start:
+                    data_dict[key][0] += 1
         else:
             for key in self.specific_data:
                 data_dict[key] = [
@@ -340,7 +352,7 @@ class BuildOrderData:
             curr_val = 0
             for i, val in enumerate(dense_vals):
                 curr_val += val * sign
-                build_order_dict[name][i] += curr_val
+                build_order_dict[name][i] += max(curr_val, 0)
         return build_order_dict
 
     def normalize_event(self, event_data, event_name=""):
