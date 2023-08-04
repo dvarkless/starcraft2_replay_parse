@@ -62,7 +62,6 @@ class ReplayData:
                 parser(self, event)
 
         map_names = {v: v.detail_data["name"] for v in self.replay.player.values()}
-        print(map_names)
 
         # Check if there was a winner
         if replay.winner is not None:
@@ -85,10 +84,12 @@ class ReplayData:
             name = map_names[player_data]
             self.players_data[name]["id"] = player_data.detail_data["bnet"]["uid"]
             self.players_data[name]["full_name"] = str(player_data)
-            self.players_data[name]["race"] = player_data.detail_data["race"]
+            self.players_data[name]["race"] = player_data.play_race
             self.players_data[name]["league"] = getattr(
                 player_data, "highest_league", 0
             )
+            self.players_data[name]["url"] = getattr(player_data, "url", "")
+
             self.players_data[name]["is_winner"] = name in self.winners
 
         return self
@@ -269,7 +270,6 @@ class BuildOrderData:
         return transformed_events
 
     def get_game_duration(self, replay_data_dict):
-        print(f"{int(replay_data_dict['frames'])} vs {self.max_tick}")
         return min(int(replay_data_dict["frames"]), self.max_tick)
 
     def yield_unit_counts(self, replay_data_dict):
@@ -295,8 +295,6 @@ class BuildOrderData:
         data_dict = dict()
         if not specific:
             for key in self.game_data.index:
-                if "Siege" in key:
-                    print(key)
                 data_dict[key] = [
                     0 for _ in range(self.game_max_dur // self.bin_size_ticks + 1)
                 ]
@@ -313,7 +311,6 @@ class BuildOrderData:
     def get_density_from_events(self, event_list):
         density_dict = self.init_zeros_density()
         for time_pos, event_name, event_value in event_list:
-            # print(f"In {time_pos} name {event_name} count {event_value}")
             density_dict[event_name][time_pos // self.bin_size_ticks] += event_value
 
         return density_dict
