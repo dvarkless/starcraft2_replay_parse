@@ -14,6 +14,7 @@ LOCALIZED_RACES["Терраны"] = "Terran"
 LOCALIZED_RACES["Зерги"] = "Zerg"
 LOCALIZED_RACES["Протоссы"] = "Protoss"
 
+
 class ReplayData:
     __parsers__ = handlers
 
