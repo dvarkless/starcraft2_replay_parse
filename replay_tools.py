@@ -277,6 +277,13 @@ class BuildOrderData:
     def get_game_duration(self, replay_data_dict):
         return min(int(replay_data_dict["frames"]), self.max_tick)
 
+    def get_ticks(self):
+        return [
+            self.bin_size_ticks * i
+            for i in range(self.game_max_dur // self.bin_size_ticks + 1)
+        ]
+
+
     def yield_unit_counts(self, replay_data_dict):
         self.game_max_dur = self.get_game_duration(replay_data_dict)
         for player_events in replay_data_dict["stats"].values():
