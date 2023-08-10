@@ -66,6 +66,7 @@ GreaterSpire,Zerg,71,Unit
 CreepTumor,Zerg,11,Unit
 BansheeCloak,Terran,79,Upgrade
 BansheeSpeed,Terran,100,Upgrade
+RavenCorvidReactor,Terran,79,Upgrade
 BattlecruiserEnableSpecializations,Terran,100,Upgrade
 CycloneLockOnDamageUpgrade,Terran,100,Upgrade
 DrillClaws,Terran,57,Upgrade

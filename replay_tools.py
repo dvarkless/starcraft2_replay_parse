@@ -4,9 +4,9 @@ from pathlib import Path
 
 import pandas as pd
 import sc2reader
+from sc2reader.constants import LOCALIZED_RACES
 from sc2reader.engine.plugins import (APMTracker, ContextLoader,
                                       SelectionTracker)
-from sc2reader.constants import LOCALIZED_RACES
 
 from game_info import handlers
 
@@ -282,7 +282,6 @@ class BuildOrderData:
             self.bin_size_ticks * i
             for i in range(self.game_max_dur // self.bin_size_ticks + 1)
         ]
-
 
     def yield_unit_counts(self, replay_data_dict):
         self.game_max_dur = self.get_game_duration(replay_data_dict)
