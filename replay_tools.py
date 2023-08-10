@@ -6,6 +6,7 @@ import pandas as pd
 import sc2reader
 from sc2reader.engine.plugins import (APMTracker, ContextLoader,
                                       SelectionTracker)
+from sc2reader.constants import LOCALIZED_RACES
 
 from game_info import handlers
 
@@ -84,7 +85,7 @@ class ReplayData:
             name = map_names[player_data]
             self.players_data[name]["id"] = player_data.detail_data["bnet"]["uid"]
             self.players_data[name]["full_name"] = str(player_data)
-            self.players_data[name]["race"] = player_data.play_race
+            self.players_data[name]["race"] = LOCALIZED_RACES[player_data.play_race]
             self.players_data[name]["league"] = getattr(
                 player_data, "highest_league", 0
             )
@@ -222,7 +223,7 @@ class BuildOrderData:
             for k in self.add_info.keys():
                 if not isinstance(k, str):
                     raise ValueError(
-                        f"Keys of additional info dict should only be of type str"
+                        "Keys of additional info dict should only be of type str"
                     )
 
         self.game_data = self.get_game_data(game_data, game_data_speed)
