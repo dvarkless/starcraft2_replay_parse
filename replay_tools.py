@@ -239,7 +239,7 @@ class BuildOrderData:
             if name in self.replace_units.keys():
                 df = df.drop(index=name)
                 continue
-            if df.loc[name, "type"] == "Unit":
+            if df.loc[name, "type"] in ("Unit", "Building"):
                 prefix_list = list(self.symbol_meaning.values())
                 if name in self.morthed_units.keys():
                     prefix_list.remove("create_")
