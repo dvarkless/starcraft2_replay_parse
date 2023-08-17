@@ -150,9 +150,9 @@ class BuildOrderData:
         "*": "morth_",
     }
     buildings_at_start = [
-        "Hatchery",
-        "Nexus",
-        "CommandCenter",
+        "create_Hatchery",
+        "create_Nexus",
+        "create_CommandCenter",
     ]
 
     replace_units = {
@@ -167,7 +167,7 @@ class BuildOrderData:
         "WarpGate": "Gateway",
         "Archon": "HighTemplar",
         "Lair": "Hatchery",
-        "Hive": "Hatchery",
+        "Hive": "Lair",
         "Lurker": "Hydralisk",
         "Baneling": "Zergling",
         "Ravager": "Roach",
@@ -270,8 +270,8 @@ class BuildOrderData:
         for name in self.specific_data:
             for event in player_data_dict[name]:
                 events_list.append(self.normalize_event(event, event_name=name))
+        events_list = [e for e in events_list if self.filter_event(*e)]
         transformed_events = [self.transform_event(*e) for e in events_list]
-        transformed_events = [e for e in transformed_events if e is not None]
         return transformed_events
 
     def get_game_duration(self, replay_data_dict):
@@ -285,7 +285,9 @@ class BuildOrderData:
 
     def yield_unit_counts(self, replay_data_dict):
         self.game_max_dur = self.get_game_duration(replay_data_dict)
-        for player_events in replay_data_dict["stats"].values():
+        for player, player_events in replay_data_dict["stats"].items():
+            player_name = replay_data_dict["players"][player - 1]
+            player_race = replay_data_dict["players_data"][player_name]["race"]
             transformed_events = self.get_event_counts(player_events)
             specific_events = []
             regular_events = []
@@ -296,14 +298,16 @@ class BuildOrderData:
                     regular_events.append(event)
 
             dense_dict = self.get_density_from_events(regular_events)
-            build_order_dict = self.get_build_order_from_density(dense_dict)
+            build_order_dict = self.get_build_order_from_density(
+                dense_dict, player_race=player_race
+            )
 
             build_order_special = self.get_build_order_special(specific_events)
             build_order_dict |= build_order_special
             yield build_order_dict
 
     def init_zeros_density(self, specific=False):
-        data_dict = dict()
+        data_dict = {}
         if not specific:
             for key in self.game_data.index:
                 data_dict[key] = [
@@ -323,6 +327,10 @@ class BuildOrderData:
         density_dict = self.init_zeros_density()
         for time_pos, event_name, event_value in event_list:
             density_dict[event_name][time_pos // self.bin_size_ticks] += event_value
+            if event_name.startswith("morth"):
+                old_unit = self.morthed_units[event_name.split("_")[-1]]
+                event = f"lose_{old_unit}"
+                density_dict[event][time_pos // self.bin_size_ticks] += 1
 
         return density_dict
 
@@ -336,15 +344,20 @@ class BuildOrderData:
             curr_val = 0
             for i, val in enumerate(vals):
                 curr_val = curr_val if val == 0 else val
-                density_dict[name][i] = curr_val
+                vals[i] = curr_val
 
         return density_dict
 
-    def get_build_order_from_density(self, density_dict):
-        build_order_dict = dict()
-        for event_name, dense_vals in density_dict.items():
+    def get_build_order_from_density(self, density_dict, player_race=None):
+        build_order_dict = {}
+        if player_race is not None:
+            names = list(self.game_data[self.game_data["race"] == player_race].index)
+        else:
+            names = self.game_data.index
+
+        for event_name in names:
             relevant_prefixes = ("create", "lose", "morth")
-            if any([event_name.startswith(p) for p in relevant_prefixes]):
+            if any((event_name.startswith(p) for p in relevant_prefixes)):
                 action, name = event_name.split("_")
             else:
                 action = "create"
@@ -358,9 +371,10 @@ class BuildOrderData:
                 sign = -1
 
             curr_val = 0
-            for i, val in enumerate(dense_vals):
+            for i, val in enumerate(density_dict[event_name]):
                 curr_val += val * sign
-                build_order_dict[name][i] += max(curr_val, 0)
+                build_order_dict[name][i] += curr_val
+                build_order_dict[name][i] = max(build_order_dict[name][i], 0)
         return build_order_dict
 
     def normalize_event(self, event_data, event_name=""):
@@ -381,23 +395,47 @@ class BuildOrderData:
 
         return tick, action, event_name, event_value
 
-    def transform_event(self, tick, action, event_name, event_value):
+    def filter_event(self, tick, action, event_name, event_value):
         if tick >= self.game_max_dur:
-            return
+            return False
         if action == "*" and event_name in self.ignore_morths:
-            return
+            return False
         if action == "*" and event_name not in self.morthed_units.keys():
-            return
-        if event_name in self.replace_units.keys():
-            event_name = self.replace_units[event_name]
+            return False
+        return True
 
-        if action == "+" and event_name in self.morthed_units.keys():
-            event_name = self.symbol_meaning[action] + self.morthed_units[event_name]
+    def _delayed_action(self, action, event_name):
+        if event_name not in self.game_data.index:
+            return False
+        if self.game_data.loc[event_name, "type"] in ("Building", "Upgrade"):
+            if action in ("+", "*"):
+                return True
+        if action in ("*"):
+            return True
+        return False
+
+    def transform_event(self, tick, action, object_name, event_value):
+        event_name = object_name
+        if object_name in self.replace_units.keys():
+            event_name = self.replace_units[object_name]
+
+        if action == "+" and object_name in self.morthed_units.keys():
+            sample_event = f"morth_{object_name}"
+            if self.game_data.loc[sample_event, "type"] == "Building":
+                event_name = self.symbol_meaning[action] + self.morthed_units[object_name]
+            else:
+                event_name = self.symbol_meaning["*"] + object_name
+
         elif action in ("+", "*", "-"):
-            event_name = self.symbol_meaning[action] + event_name
+            if object_name == "OrbitalCommand":
+                print(object_name)
+            event_name = self.symbol_meaning[action] + object_name
 
-        if action in ("+", "*"):
-            creation_tick = tick - self.game_data.loc[event_name, "build_time"]
+        if self._delayed_action(action, event_name):
+            creation_tick = (
+                tick
+                - self.game_data.loc[event_name, "build_time"]
+            )
         else:
             creation_tick = tick
 
