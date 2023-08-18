@@ -167,7 +167,7 @@ class BuildOrderData:
         "WarpGate": "Gateway",
         "Archon": "HighTemplar",
         "Lair": "Hatchery",
-        "Hive": "Lair",
+        "Hive": "Hatchery",
         "Lurker": "Hydralisk",
         "Baneling": "Zergling",
         "Ravager": "Roach",
