@@ -323,6 +323,19 @@ class BuildOrderData:
 
         return data_dict
 
+    def init_zeros_distribution(self):
+        data_dict = {}
+        ignore_prefixes = ("lose", "morth")
+        for key in self.game_data.index:
+            if any((key.startswith(p) for p in ignore_prefixes)):
+                continue
+            if key.startswith("create"):
+                key = key.split("_")[-1]
+            data_dict[key] = [
+                0 for _ in range(self.game_max_dur // self.bin_size_ticks + 1)
+            ]
+        return data_dict
+
     def get_density_from_events(self, event_list):
         density_dict = self.init_zeros_density()
         for time_pos, event_name, event_value in event_list:
@@ -349,7 +362,7 @@ class BuildOrderData:
         return density_dict
 
     def get_build_order_from_density(self, density_dict, player_race=None):
-        build_order_dict = {}
+        build_order_dict = self.init_zeros_distribution()
         if player_race is not None:
             names = list(self.game_data[self.game_data["race"] == player_race].index)
         else:
@@ -427,8 +440,6 @@ class BuildOrderData:
                 event_name = self.symbol_meaning["*"] + object_name
 
         elif action in ("+", "*", "-"):
-            if object_name == "OrbitalCommand":
-                print(object_name)
             event_name = self.symbol_meaning[action] + object_name
 
         if self._delayed_action(action, event_name):
