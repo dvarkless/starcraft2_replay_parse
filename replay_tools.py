@@ -325,12 +325,12 @@ class BuildOrderData:
 
     def init_zeros_distribution(self):
         data_dict = {}
-        ignore_prefixes = ("lose", "morth")
+        creation_prefixes = ("create", "morth")
         for key in self.game_data.index:
-            if any((key.startswith(p) for p in ignore_prefixes)):
-                continue
-            if key.startswith("create"):
+            if any((key.startswith(p) for p in creation_prefixes)):
                 key = key.split("_")[-1]
+            if key.startswith("lose"):
+                continue
             data_dict[key] = [
                 0 for _ in range(self.game_max_dur // self.bin_size_ticks + 1)
             ]
