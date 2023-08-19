@@ -286,8 +286,6 @@ class BuildOrderData:
     def yield_unit_counts(self, replay_data_dict):
         self.game_max_dur = self.get_game_duration(replay_data_dict)
         for player, player_events in replay_data_dict["stats"].items():
-            player_name = replay_data_dict["players"][player - 1]
-            player_race = replay_data_dict["players_data"][player_name]["race"]
             transformed_events = self.get_event_counts(player_events)
             specific_events = []
             regular_events = []
@@ -298,9 +296,7 @@ class BuildOrderData:
                     regular_events.append(event)
 
             dense_dict = self.get_density_from_events(regular_events)
-            build_order_dict = self.get_build_order_from_density(
-                dense_dict, player_race=player_race
-            )
+            build_order_dict = self.get_build_order_from_density(dense_dict)
 
             build_order_special = self.get_build_order_special(specific_events)
             build_order_dict |= build_order_special
@@ -361,12 +357,9 @@ class BuildOrderData:
 
         return density_dict
 
-    def get_build_order_from_density(self, density_dict, player_race=None):
+    def get_build_order_from_density(self, density_dict):
         build_order_dict = self.init_zeros_distribution()
-        if player_race is not None:
-            names = list(self.game_data[self.game_data["race"] == player_race].index)
-        else:
-            names = self.game_data.index
+        names = self.game_data.index
 
         for event_name in names:
             relevant_prefixes = ("create", "lose", "morth")
@@ -384,10 +377,11 @@ class BuildOrderData:
                 sign = -1
 
             curr_val = 0
-            for i, val in enumerate(density_dict[event_name]):
-                curr_val += val * sign
-                build_order_dict[name][i] += curr_val
-                build_order_dict[name][i] = max(build_order_dict[name][i], 0)
+            if len(set(density_dict[event_name])) > 1:
+                for i, val in enumerate(density_dict[event_name]):
+                    curr_val += val * sign
+                    build_order_dict[name][i] += curr_val
+                    build_order_dict[name][i] = max(build_order_dict[name][i], 0)
         return build_order_dict
 
     def normalize_event(self, event_data, event_name=""):
@@ -435,7 +429,9 @@ class BuildOrderData:
         if action == "+" and object_name in self.morthed_units.keys():
             sample_event = f"morth_{object_name}"
             if self.game_data.loc[sample_event, "type"] == "Building":
-                event_name = self.symbol_meaning[action] + self.morthed_units[object_name]
+                event_name = (
+                    self.symbol_meaning[action] + self.morthed_units[object_name]
+                )
             else:
                 event_name = self.symbol_meaning["*"] + object_name
 
@@ -443,10 +439,7 @@ class BuildOrderData:
             event_name = self.symbol_meaning[action] + object_name
 
         if self._delayed_action(action, event_name):
-            creation_tick = (
-                tick
-                - self.game_data.loc[event_name, "build_time"]
-            )
+            creation_tick = tick - self.game_data.loc[event_name, "build_time"]
         else:
             creation_tick = tick
 
