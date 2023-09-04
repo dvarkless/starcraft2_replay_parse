@@ -104,27 +104,27 @@ out = {
     "replay_name": str,
     "expansion": str,                       # ['WoL', 'HotS', 'Lotv']
     "frames": int,                          # Number of ticks the game has
-    "mode": str,							# '1v1'
-    "map": str,								# Hash value of the map
-    "map_name": str,						# Map name (prefix and suffix excluded)
-    "matchup": str,							# ZvT, ZvP, etc...
-    "winners": List[str],					# Nickname of the winner
-    "losers": List[str],					# Nickname of the loser(s)
-    "stats_names": str,						# Players_data dick keys
-    "players": str,							# Player nicknames
-    "players_hash": str,					# Hash of two players nicknames,
-											# helps find identical replays 
-											# with different names
-    "players_data": dict{					# Players info
-							'id': int,
-							'full_name':str,# name as in stats_names
-							'race': str,
-							'league': int,	# 0-8, 0-unranked, 8-GM		
-							'url': str,		# link to battle.net account
-							'is_winner': bool,	
+    "mode": str,			    # '1v1'
+    "map": str,				    # Hash value of the map
+    "map_name": str,			    # Map name (prefix and suffix excluded)
+    "matchup": str,			    # ZvT, ZvP, etc...
+    "winners": List[str],		    # Nickname of the winner
+    "losers": List[str],		    # Nickname of the loser(s)
+    "stats_names": str,			    # Players_data dick keys
+    "players": str,			    # Player nicknames
+    "players_hash": str,		    # Hash of two players nicknames,
+                                            # helps find identical replays 
+					    # with different names
+    "players_data": dict{		    # Players info
+				'id': int,
+				'full_name':str,	# name as in stats_names
+				'race': str,
+				'league': int,		# 0-8, 0-unranked, 8-GM		
+				'url': str,		# link to battle.net account
+				'is_winner': bool,	
 						},					
-    "stats": dict { ... },					# Events
-    "league": int,							# Min players league: 0-8, 0-unranked, 8-GM	
+    "stats": dict { ... },	            # Events
+    "league": int,			    # Min players league: 0-8, 0-unranked, 8-GM	
 }
 
 ```
