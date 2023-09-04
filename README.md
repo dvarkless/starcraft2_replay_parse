@@ -31,7 +31,7 @@ the game.
 ### Setup
 1. Clone the repository by running
 ```
-git clone https://github.com/dvarkless/starcraft2-replay-parse.git
+git clone https://github.com/dvarkless/starcraft2_replay_parse.git
 ```    
 2. Create a python virtual environment:
 ```
@@ -129,14 +129,14 @@ player_1_dict = next(out)
 ```
 The dict represents a sparse table where columns are defined in the `game_info.csv`
 file. There is units and buildings, regardless of players' game race.
-Additionaly, there is a minerals and vespene counter.  
+Additionally, there is a minerals and vespene counter.  
 The lists are the same length of either the game length in `tick // parsing_step` or maximum game length, depending on which one is smaller.  
 **Columns**:  
 
 - Units  
 - Buildings  
 - Upgrades  
-- Resouces available  
+- Resources available  
 
 **Rows**:  
 
@@ -156,6 +156,8 @@ player_1_dict = {
 	vespene_available: list[int],
 }
 ```
+## Acknowledgements
+This project uses [SC2Reader](https://github.com/ggtracker/sc2reader) tool to parse replays
 
 ## License
 
