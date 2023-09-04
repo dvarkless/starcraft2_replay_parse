@@ -30,22 +30,31 @@ the game.
 
 ### Setup
 1. Clone the repository by running
-```
+
+```sh
 git clone https://github.com/dvarkless/starcraft2_replay_parse.git
 ```    
 2. Create a python virtual environment:
-```
+
+```sh
 cd Classic-ML-Models
 python -m venv venv
 ```   
 3. If you are using Linux or Mac:
-```
+
+```sh
 source ./venv/bin/activate
 ```  
 If you are using Windows:
-```
+
+```sh
 ./venv/Scripts/activate.ps1
 ```  
+4. Install packages:
+
+```sh
+pip install -r requirements.txt
+```
 
 ## Usage
 1. Prepare a dataset, split it into training data, evaluation input and evaluation answers:  
@@ -95,27 +104,27 @@ out = {
     "replay_name": str,
     "expansion": str,                       # ['WoL', 'HotS', 'Lotv']
     "frames": int,                          # Number of ticks the game has
-    "mode": str,			    # '1v1'
-    "map": str,				    # Hash value of the map
-    "map_name": str,			    # Map name (prefix and suffix excluded)
-    "matchup": str,			    # ZvT, ZvP, etc...
-    "winners": List[str],		    # Nickname of the winner
-    "losers": List[str],		    # Nickname of the loser(s)
-    "stats_names": str,			    # Players_data dick keys
-    "players": str,			    # Player nicknames
-    "players_hash": str,	            # Hash of two players nicknames
-                                            # helps find identical replays 
-                                            # with different names
-    "players_data": dict{		    # Players info
-                                'id': int,
-				'full_name':str,        # name as in stats_names
-				'race': str,
-				'league': int,	        # 0-8, 0-unranked, 8-GM		
-				'url': str,		# link to battle.net account
-				'is_winner': bool,	
-                        },					
-    "stats": dict { ... },	# Events
-    "league": int,		# Min players league: 0-8, 0-unranked, 8-GM	
+    "mode": str,							# '1v1'
+    "map": str,								# Hash value of the map
+    "map_name": str,						# Map name (prefix and suffix excluded)
+    "matchup": str,							# ZvT, ZvP, etc...
+    "winners": List[str],					# Nickname of the winner
+    "losers": List[str],					# Nickname of the loser(s)
+    "stats_names": str,						# Players_data dick keys
+    "players": str,							# Player nicknames
+    "players_hash": str,					# Hash of two players nicknames,
+											# helps find identical replays 
+											# with different names
+    "players_data": dict{					# Players info
+							'id': int,
+							'full_name':str,# name as in stats_names
+							'race': str,
+							'league': int,	# 0-8, 0-unranked, 8-GM		
+							'url': str,		# link to battle.net account
+							'is_winner': bool,	
+						},					
+    "stats": dict { ... },					# Events
+    "league": int,							# Min players league: 0-8, 0-unranked, 8-GM	
 }
 
 ```
@@ -130,7 +139,9 @@ player_1_dict = next(out)
 The dict represents a sparse table where columns are defined in the `game_info.csv`
 file. There is units and buildings, regardless of players' game race.
 Additionally, there is a minerals and vespene counter.  
-The lists are the same length of either the game length in `tick // parsing_step` or maximum game length, depending on which one is smaller.  
+The lists are the same length of either the game length in `tick // parsing_step` 
+or maximum game length, depending on which one is smaller.  
+
 **Columns**:  
 
 - Units  
